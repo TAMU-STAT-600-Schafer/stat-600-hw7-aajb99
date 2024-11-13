@@ -19,22 +19,150 @@
 LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta_init = NULL){
   ## Check the supplied parameters as described. You can assume that X, Xt are matrices; y, yt are vectors; and numIter, eta, lambda are scalars. You can assume that beta_init is either NULL (default) or a matrix.
   ###################################
+
+  # Initialize K, p, n:
+  K <- length(unique(y))
+  p <- dim(X)[2]
+  n <- length(y)
+  # Initialize vector objects (errors/objective):
+  error_train <- vector()
+  error_test <- vector()
+  objective <- vector()
+  
   # Check that the first column of X and Xt are 1s, if not - display appropriate message and stop execution.
+  if (!all(X[,1] == 1) | !all(Xt[,1] == 1)){
+    
+    stop(paste("Either X or Xt (or both) contains values other than 1 in first column. Check and readjust."))
+    
+  }
+  
+  ###
   
   # Check for compatibility of dimensions between X and Y
+  if (dim(X)[1] != n) {
+    
+    stop(paste("Dimensions between X and Y are not compatible. Check and readjust."))
+    
+  }
+  
+  ###
   
   # Check for compatibility of dimensions between Xt and Yt
+  if (dim(Xt)[1] != length(yt)) {
+    
+    stop(paste("Dimensions between Xt and Yt are not compatible. Check and readjust."))
+    
+  }
+  
+  ###
   
   # Check for compatibility of dimensions between X and Xt
+  if (p != dim(Xt)[2]) {
+    
+    stop(paste("Dimensions between X and Xt are not compatible. Check and readjust."))
+    
+  }
+  
+  ###
   
   # Check eta is positive
+  if (eta <= 0){
+    
+    stop(paste("eta parameter is not positive. Readjust."))
+    
+  }
+  
+  ###
   
   # Check lambda is non-negative
+  if (lambda < 0){
+    
+    stop(paste("lambda parameter is negative. Readjust."))
+    
+  }
+  
+  ###
   
   # Check whether beta_init is NULL. If NULL, initialize beta with p x K matrix of zeroes. If not NULL, check for compatibility of dimensions with what has been already supplied.
+  if (all(is.null(beta_init)) | all(is.na(beta_init))) {
+    
+    beta_init <- matrix(0, nrow = dim(X)[2], ncol = K)
+    
+  }
+  # If not all NULL/NA, check compatibility with X and K
+  else {
+    
+    # If dimensions incompatible: stop job, print error statement
+    if (dim(beta_init)[1] != p | dim(beta_init)[2] != K) {
+      
+      stop(paste("Dimensions of beta_init not compatible with p and/or K. Check and readjust."))
+      
+    }
+    # If compatible, continue
+    
+  }
+  
   
   ## Calculate corresponding pk, objective value f(beta_init), training error and testing error given the starting point beta_init
   ##########################################################################
+  
+  # Compute pk: #
+  ###############
+  
+  # For X:
+  # Num
+  Xb <- X %*% beta_init
+  exp_Xb <- exp(Xb)
+  # Denom
+  sum_exp_Xb <- rowSums(exp_Xb)
+  # pk:
+  p_k <- exp_Xb / sum_exp_Xb
+  
+  # For Xt:
+  # Num
+  Xtb <- Xt %*% beta_init
+  exp_Xtb <- exp(Xtb)
+  # Denom
+  sum_exp_Xtb <- rowSums(exp_Xtb)
+  # pk:
+  p_kt <- exp_Xtb / sum_exp_Xtb
+  
+  ###
+  
+  # Compute Objective Value f(beta_init) #
+  ########################################
+  
+  y_factor <- as.factor(y)
+  y_indicator <- model.matrix(~ y_factor - 1)
+  
+  objective_obj <- 
+    -sum(diag(y_indicator %*% t(log(p_k)))) + # Negative Log Likelihood
+    ((lambda / 2) * sum(colSums(beta_init^2))) # Ridge Penalty
+  
+  objective <- append(objective, objective_obj)
+  
+  ###
+  
+  # Compute Training/Testing Errors #
+  ###################################
+  
+  # Train
+  y_preds <- apply(p_k, 1, which.max) - 1
+  # Compute percent
+  error_train_obj <- (1 - mean(y_preds == y)) * 100
+  
+  error_train <- append(error_train, error_train_obj)
+  
+  # Test
+  yt_preds <- apply(p_kt, 1, which.max) - 1
+  # Compute percent
+  error_test_obj <- (1 - mean(yt_preds == yt)) * 100
+  
+  error_test <- append(error_test, error_test_obj)
+  
+  
+  ############## ############## ############## ############## ##############
+  
   
   ## Newton's method cycle - implement the update EXACTLY numIter iterations
   ##########################################################################
