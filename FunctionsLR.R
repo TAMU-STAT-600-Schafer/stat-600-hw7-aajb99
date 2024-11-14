@@ -28,6 +28,8 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   error_train <- vector()
   error_test <- vector()
   objective <- vector()
+  # Initialize beta:
+  beta <- beta_init
   
   # Check that the first column of X and Xt are 1s, if not - display appropriate message and stop execution.
   if (!all(X[,1] == 1) | !all(Xt[,1] == 1)){
@@ -83,19 +85,19 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   
   ###
   
-  # Check whether beta_init is NULL. If NULL, initialize beta with p x K matrix of zeroes. If not NULL, check for compatibility of dimensions with what has been already supplied.
-  if (all(is.null(beta_init)) | all(is.na(beta_init))) {
+  # Check whether beta is NULL. If NULL, initialize beta with p x K matrix of zeroes. If not NULL, check for compatibility of dimensions with what has been already supplied.
+  if (all(is.null(beta)) | all(is.na(beta))) {
     
-    beta_init <- matrix(0, nrow = dim(X)[2], ncol = K)
+    beta <- matrix(0, nrow = dim(X)[2], ncol = K)
     
   }
   # If not all NULL/NA, check compatibility with X and K
   else {
     
     # If dimensions incompatible: stop job, print error statement
-    if (dim(beta_init)[1] != p | dim(beta_init)[2] != K) {
+    if (dim(beta)[1] != p | dim(beta)[2] != K) {
       
-      stop(paste("Dimensions of beta_init not compatible with p and/or K. Check and readjust."))
+      stop(paste("Dimensions of beta not compatible with p and/or K. Check and readjust."))
       
     }
     # If compatible, continue
@@ -103,7 +105,7 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   }
   
   
-  ## Calculate corresponding pk, objective value f(beta_init), training error and testing error given the starting point beta_init
+  ## Calculate corresponding pk, objective value f(beta), training error and testing error given the starting point beta
   ##########################################################################
   
   # Compute pk: #
@@ -111,7 +113,7 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   
   # For X:
   # Num
-  Xb <- X %*% beta_init
+  Xb <- X %*% beta
   exp_Xb <- exp(Xb)
   # Denom
   sum_exp_Xb <- rowSums(exp_Xb)
@@ -120,7 +122,7 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   
   # For Xt:
   # Num
-  Xtb <- Xt %*% beta_init
+  Xtb <- Xt %*% beta
   exp_Xtb <- exp(Xtb)
   # Denom
   sum_exp_Xtb <- rowSums(exp_Xtb)
@@ -129,7 +131,7 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   
   ###
   
-  # Compute Objective Value f(beta_init) #
+  # Compute Objective Value f(beta) #
   ########################################
   
   y_factor <- as.factor(y)
@@ -137,7 +139,7 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   
   objective_obj <- 
     -sum(diag(y_indicator %*% t(log(p_k)))) + # Negative Log Likelihood
-    ((lambda / 2) * sum(colSums(beta_init^2))) # Ridge Penalty
+    ((lambda / 2) * sum(colSums(beta^2))) # Ridge Penalty
   
   objective <- append(objective, objective_obj)
   
@@ -166,8 +168,92 @@ LRMultiClass <- function(X, y, Xt, yt, numIter = 50, eta = 0.1, lambda = 1, beta
   
   ## Newton's method cycle - implement the update EXACTLY numIter iterations
   ##########################################################################
+  
+  # Initialize Terms:
+  X_tran <- t(X)
+  lambda_I <- lambda * diag(1, nrow = p)
+  g <- rep(NA, K)
+  W <- rep(NA, n)
+  h <- matrix(NA, K, K)
+  X_W <- matrix(NA, n, p)
+  
  
   # Within one iteration: perform the update, calculate updated objective function and training/testing errors in %
+  
+  for (i in 1:numIter){
+    
+    for (k in 1:K){
+      
+      # W term configuration (in Hessian):
+      W <- p_k[, k] * (1 - p_k[, k])
+      
+      # Weighted multiplication of matrix X
+      X_W <- X * sqrt(W)
+      
+      # Gradient Update:
+      g <- X_tran %*% (p_k[, k] - y_indicator[, k]) + (lambda * beta[, k])
+      
+      # Hessian Update:
+      h <- (t(X_W) %*% X_W) + (lambda_I)
+      
+      # Damped Newton's Update:
+      beta[, k] <- beta[, k] -eta * (solve(h) %*% g)
+      
+    }
+    
+    # Update p_k #
+    ##############
+    
+    # Train:
+    # Num
+    Xb <- X %*% beta
+    exp_Xb <- exp(Xb)
+    # Denom
+    sum_exp_Xb <- rowSums(exp_Xb)
+    # pk:
+    p_k <- exp_Xb / sum_exp_Xb
+    # Test:
+    #######
+    Xtb <- Xt %*% beta
+    exp_Xtb <- exp(Xtb)
+    # Denom
+    sum_exp_Xtb <- rowSums(exp_Xtb)
+    # pkt:
+    p_kt <- exp_Xtb / sum_exp_Xtb
+    
+    
+    # Compute Training/Testing Errors #
+    ###################################
+    
+    # Train
+    y_preds <- apply(p_k, 1, which.max) - 1
+    # Compute percent
+    error_train_obj <- (1 - mean(y_preds == y)) * 100
+    
+    error_train <- append(error_train, error_train_obj)
+    
+    # Test
+    yt_preds <- apply(p_kt, 1, which.max) - 1
+    # Compute percent
+    error_test_obj <- (1 - mean(yt_preds == yt)) * 100
+    
+    error_test <- append(error_test, error_test_obj)
+    
+    
+    # Compute Objective Value #
+    ###########################
+    # objective_obj <- 
+    #   -sum(diag(y_indicator %*% t(log(p_k)))) + # Negative Log Likelihood
+    #   ((lambda / 2) * sum(colSums(beta^2))) # Ridge Penalty
+    
+    log_pk <- log(p_k)
+    neg_log_lik <- -sum(y_indicator * log_pk) # Negative Log Likelihood
+    ridge_reg <- (lambda / 2) * sum(beta^2) # Ridge Penalty
+    objective_obj <- neg_log_lik + ridge_reg
+    
+    objective <- append(objective, objective_obj)
+    
+  }
   
   
   ## Return output
