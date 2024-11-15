@@ -7,9 +7,14 @@
 # seed - specified seed to use before random normal draws
 initialize_bw <- function(p, hidden_p, K, scale = 1e-3, seed = 12345){
   # [ToDo] Initialize intercepts as zeros
+  b1 <- rep(0, hidden_p)
+  b2 = 0
   
   # [ToDo] Initialize weights by drawing them iid from Normal
   # with mean zero and scale as sd
+  set.seed(seed)
+  W1 <- scale * matrix(rnorm(p * hidden_p), p, hidden_p)
+  W2 <- scale * matrix(rnorm(hidden_p ), hidden_p, 1)
   
   # Return
   return(list(b1 = b1, b2 = b2, W1 = W1, W2 = W2))
@@ -24,15 +29,44 @@ initialize_bw <- function(p, hidden_p, K, scale = 1e-3, seed = 12345){
 loss_grad_scores <- function(y, scores, K){
   
   # [ToDo] Calculate loss when lambda = 0
-  # loss = ...
+  
+  # Compute pk: #
+  ###############
+  
+  # For X:
+  # Num
+  exp_scores <- exp(scores)
+  # Denom
+  sum_exp_scores <- rowSums(exp_scores)
+  # pk:
+  p_k <- exp_scores / sum_exp_scores
+  
+  ###
+  
+  # Compute Objective Value f(beta) (loss) #
+  ##########################################
+  
+  y_factor <- as.factor(y)
+  y_indicator <- model.matrix(~ y_factor - 1)
+  
+  loss <- -sum(diag(y_indicator %*% t(log(p_k)))) # Negative Log Likelihood
+  
+  ###
   
   # [ToDo] Calculate misclassification error rate (%)
   # when predicting class labels using scores versus true y
-  # error = ...
+  y_preds <- apply(p_k, 1, which.max) - 1
+  # Compute percent
+  error <- (1 - mean(y_preds == y)) * 100
+  
   
   # [ToDo] Calculate gradient of loss with respect to scores (output)
   # when lambda = 0
   # grad = ...
+  
+  
+  
+  
   
   # Return loss, gradient and misclassification error on training (in %)
   return(list(loss = loss, grad = grad, error = error))
