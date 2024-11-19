@@ -62,7 +62,8 @@ loss_grad_scores <- function(y, scores, K){
   
   # [ToDo] Calculate gradient of loss with respect to scores (output)
   # when lambda = 0
-  grad = y_indicator * (1 - p_k)
+  # grad <- y_indicator * (p_k - 1) / n
+  grad <- (p_k - y_indicator) / n
   
   
   # Return loss, gradient and misclassification error on training (in %)
@@ -95,10 +96,12 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
   out <- loss_grad_scores(y, scores, K)
   
   # Get gradient for 2nd layer W2, b2 (use lambda as needed)
-  dW2 <- crossprod(H1, out$grad)
-  db2 <- 
+  dW2 <- crossprod(H1, out$grad) + lambda * W2
+  db2 <- ...
   
   # Get gradient for hidden, and 1st layer W1, b1 (use lambda as needed)
+  dH <- tcrossprod(out$grad, W2)
+  
   
   # Return output (loss and error from forward pass,
   # list of gradients from backward pass)
