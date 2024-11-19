@@ -97,11 +97,13 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
   
   # Get gradient for 2nd layer W2, b2 (use lambda as needed)
   dW2 <- crossprod(H1, out$grad) + lambda * W2
-  db2 <- ...
+  db2 <- colSums(out$grad)
   
   # Get gradient for hidden, and 1st layer W1, b1 (use lambda as needed)
   dH <- tcrossprod(out$grad, W2)
-  
+  dA1 = (abs(dH) + dH)/2
+  dW1 = crossprod(X, dA1)
+  db1 = colSums(dA1)
   
   # Return output (loss and error from forward pass,
   # list of gradients from backward pass)
@@ -148,6 +150,14 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
 
   # [ToDo] Initialize b1, b2, W1, W2 using initialize_bw with seed as seed,
   # and determine any necessary inputs from supplied ones
+  # Necessary Inputs:
+  p <- ncol(X) # Number of features
+  # Initializing weights/intercepts via initialize_bw:
+  init <- initialize_bw(p, hidden_p, scale = scale, seed = seed)
+  b1 <- init$b1
+  b2 <- init$b2
+  W1 <- init$W1
+  W2 <- init$W2
   
   # Initialize storage for error to monitor convergence
   error = rep(NA, nEpoch)
@@ -159,13 +169,35 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
   for (i in 1:nEpoch){
     # Allocate bathes
     batchids = sample(rep(1:nBatch, length.out = n), size = n)
+    # [ToDo]
+    # Accumulate loss over batches, and compute average:
+    error_loss <- 0
     # [ToDo] For each batch
     #  - do one_pass to determine current error and gradients
     #  - perform SGD step to update the weights and intercepts
+    for (j in 1:nBatch){
+      
+      # Get loss and gradient on the batch
+      pass <- one_pass(X[batchids == j, ], y[batchids == j], W1, b1, W2, b2)
+      
+      # Keep track of loss
+      error_loss <- error_loss + pass$loss
+      
+      # [ToDo] Make an update of W1, b1, W2, b2
+      W1 <- W1 - rate * pass$grads$dW1
+      b1 <- b1 - rate * pass$grads$db1
+      W2 <- W2 - rate * pass$grads$dW2
+      b2 <- b2 - rate * pass$grads$db2
+      
+    }
     
     # [ToDo] In the end of epoch, evaluate
     # - average training error across batches
+    error[i] <- error_loss / nBatch
+    
     # - validation error using evaluate_error function
+    error_val[i] <- loss_only(Xval, yval, W1, b1, W2, b2)
+    
   }
   # Return end result
   return(list(error = error, error_val = error_val, params =  list(W1 = W1, b1 = b1, W2 = W2, b2 = b2)))
