@@ -120,30 +120,16 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
 # b2 - a vector of size K of intercepts
 evaluate_error <- function(Xval, yval, W1, b1, W2, b2){
   # [ToDo] Forward pass to get scores on validation data
+  nval <- nrow(Xval)
+  H1 <- Xval %*% W1 + matrix(b1, nrow = nval, ncol = length(b1), byrow = TRUE)
+  # ReLU
+  H1 <- (abs(H1) + H1)/2
+  # From hidden to output scores
+  scores <- H1 %*% W2 + b2
   
   # [ToDo] Evaluate error rate (in %) when 
   # comparing scores-based predictions with true yval
-  
-  
-  
-  # Dimensions
-  n = length(y)
-  
-  # From input to hidden
-  H = X %*% W1 + matrix(b1, n, length(b1), byrow = T)
-  
-  # ReLU
-  H[H < 0] = 0
-  
-  # From hidden to output scores
-  scores = H %*% W2 + b2
-  
-  # Backward pass
-  # Get loss and gradient at current scores
-  out = mean((y - scores)^2)/2
-  
-  
-  
+  error <- (1 - mean(scores == yval)) * 100
   
   return(error)
 }
