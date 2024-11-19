@@ -13,8 +13,8 @@ initialize_bw <- function(p, hidden_p, K, scale = 1e-3, seed = 12345){
   # [ToDo] Initialize weights by drawing them iid from Normal
   # with mean zero and scale as sd
   set.seed(seed)
-  W1 <- scale * matrix(rnorm(p * hidden_p), p, hidden_p)
-  W2 <- scale * matrix(rnorm(hidden_p ), hidden_p, 1)
+  W1 <- scale * matrix(rnorm(p * hidden_p), nrow =  p, ncol = hidden_p)
+  W2 <- scale * matrix(rnorm(hidden_p ), nrow = hidden_p, ncol = K)
   
   # Return
   return(list(b1 = b1, b2 = b2, W1 = W1, W2 = W2))
@@ -49,7 +49,7 @@ loss_grad_scores <- function(y, scores, K){
   y_factor <- as.factor(y)
   y_indicator <- model.matrix(~ y_factor - 1)
   
-  loss <- -sum(diag(y_indicator %*% t(log(p_k)))) # Negative Log Likelihood
+  loss <- -sum(diag(y_indicator %*% t(log(p_k)))) / n
   
   ###
   
@@ -100,10 +100,10 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
   db2 <- colSums(out$grad)
   
   # Get gradient for hidden, and 1st layer W1, b1 (use lambda as needed)
-  dH <- tcrossprod(out$grad, W2)
-  dA1 = (abs(dH) + dH)/2
-  dW1 = crossprod(X, dA1)
-  db1 = colSums(dA1)
+  dH = tcrossprod(loss_grad$grad, W2)
+  dH[H1 == 0] <- 0
+  dW1 = crossprod(X, dH) + lambda * W1
+  db1 = colSums(dH)
   
   # Return output (loss and error from forward pass,
   # list of gradients from backward pass)
@@ -123,6 +123,27 @@ evaluate_error <- function(Xval, yval, W1, b1, W2, b2){
   
   # [ToDo] Evaluate error rate (in %) when 
   # comparing scores-based predictions with true yval
+  
+  
+  
+  # Dimensions
+  n = length(y)
+  
+  # From input to hidden
+  H = X %*% W1 + matrix(b1, n, length(b1), byrow = T)
+  
+  # ReLU
+  H[H < 0] = 0
+  
+  # From hidden to output scores
+  scores = H %*% W2 + b2
+  
+  # Backward pass
+  # Get loss and gradient at current scores
+  out = mean((y - scores)^2)/2
+  
+  
+  
   
   return(error)
 }
