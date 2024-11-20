@@ -47,5 +47,94 @@ lines(1:length(out2$error_val), out2$error_val, col = "red")
 test_error = evaluate_error(Xt, Yt, out2$params$W1, out2$params$b1, out2$params$W2, out2$params$b2)
 test_error # 16.1
 
+
+
+
 # [ToDo] Try changing the parameters above to obtain a better performance,
 # this will likely take several trials
+# Tuning Trial 1
+out = NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.001,
+                rate = 0.1, mbatch = 10, nEpoch = 10,
+                hidden_p = 10, scale = 1e-3, seed = 12345)
+plot(1:length(out$error), out$error, ylim = c(0, 70))
+lines(1:length(out$error_val), out$error_val, col = "red")
+
+# Evaluate error on testing data
+test_error = evaluate_error(Xt, Yt, out$params$W1, out$params$b1, out$params$W2, out$params$b2)
+test_error # 16.1
+
+# Tuning Trial: lambda
+out = NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.1,
+               rate = 0.1, mbatch = 50, nEpoch = 150,
+               hidden_p = 100, scale = 1e-3, seed = 12345)
+plot(1:length(out$error), out$error, ylim = c(0, 70))
+lines(1:length(out$error_val), out$error_val, col = "red")
+
+# Evaluate error on testing data
+test_error = evaluate_error(Xt, Yt, out$params$W1, out$params$b1, out$params$W2, out$params$b2)
+test_error # 16.1
+
+# Tuning Trial: mbatch
+out = NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.1,
+               rate = 0.1, mbatch = 500, nEpoch = 150,
+               hidden_p = 100, scale = 1e-3, seed = 12345)
+plot(1:length(out$error), out$error, ylim = c(0, 70))
+lines(1:length(out$error_val), out$error_val, col = "red")
+
+# Evaluate error on testing data
+test_error = evaluate_error(Xt, Yt, out$params$W1, out$params$b1, out$params$W2, out$params$b2)
+test_error # 16.1
+
+# Tuning Trial: nEpoch
+out = NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.1,
+               rate = 0.1, mbatch = 500, nEpoch = 100,
+               hidden_p = 100, scale = 1e-3, seed = 12345)
+plot(1:length(out$error), out$error, ylim = c(0, 70))
+lines(1:length(out$error_val), out$error_val, col = "red")
+
+# Evaluate error on testing data
+test_error = evaluate_error(Xt, Yt, out$params$W1, out$params$b1, out$params$W2, out$params$b2)
+test_error # 16.1
+
+# Tuning Trial: hidden_p
+out = NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.1,
+               rate = 0.1, mbatch = 500, nEpoch = 100,
+               hidden_p = 30, scale = 1e-3, seed = 12345)
+plot(1:length(out$error), out$error, ylim = c(0, 70))
+lines(1:length(out$error_val), out$error_val, col = "red")
+
+# Evaluate error on testing data
+test_error = evaluate_error(Xt, Yt, out$params$W1, out$params$b1, out$params$W2, out$params$b2)
+test_error # 16.1
+
+# Tuning Trial: Additional adjustments 1
+out = NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.5,
+               rate = 0.01, mbatch = 800, nEpoch = 50,
+               hidden_p = 15, scale = 1e-3, seed = 12345)
+plot(1:length(out$error), out$error, ylim = c(0, 70))
+lines(1:length(out$error_val), out$error_val, col = "red")
+
+# Evaluate error on testing data
+test_error = evaluate_error(Xt, Yt, out$params$W1, out$params$b1, out$params$W2, out$params$b2)
+test_error # 16.1
+
+
+
+
+###########
+# Apply neural network training with default given parameters
+out = NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.001,
+                rate = 0.1, mbatch = 400, nEpoch = 50,
+                hidden_p = 15, scale = 1e-3, seed = 12345)
+plot(1:length(out$error), out$error, ylim = c(0, 70))
+lines(1:length(out$error_val), out$error_val, col = "red")
+
+# Evaluate error on testing data
+test_error = evaluate_error(Xt, Yt, out$params$W1, out$params$b1, out$params$W2, out$params$b2)
+test_error # 16.1
+
+
+
+
+
+

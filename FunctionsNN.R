@@ -8,13 +8,13 @@
 initialize_bw <- function(p, hidden_p, K, scale = 1e-3, seed = 12345){
   # [ToDo] Initialize intercepts as zeros
   b1 <- rep(0, hidden_p)
-  b2 = 0
+  b2 <- 0
   
   # [ToDo] Initialize weights by drawing them iid from Normal
   # with mean zero and scale as sd
   set.seed(seed)
   W1 <- scale * matrix(rnorm(p * hidden_p), nrow =  p, ncol = hidden_p)
-  W2 <- scale * matrix(rnorm(hidden_p ), nrow = hidden_p, ncol = K)
+  W2 <- scale * matrix(rnorm(hidden_p * K), nrow = hidden_p, ncol = K)
   
   # Return
   return(list(b1 = b1, b2 = b2, W1 = W1, W2 = W2))
@@ -29,6 +29,9 @@ initialize_bw <- function(p, hidden_p, K, scale = 1e-3, seed = 12345){
 loss_grad_scores <- function(y, scores, K){
   
   # [ToDo] Calculate loss when lambda = 0
+  
+  # Initialize n:
+  n <- length(y)
   
   # Compute pk: #
   ###############
@@ -46,10 +49,18 @@ loss_grad_scores <- function(y, scores, K){
   # Compute Objective Value f(beta) (loss) #
   ##########################################
   
-  y_factor <- as.factor(y)
-  y_indicator <- model.matrix(~ y_factor - 1)
+  # y_factor <- as.factor(y)
+  # y_indicator <- model.matrix(~ y_factor - 1)
+  # y_indicator <- model.matrix(~ y_factor)
+  y_indicator <- matrix(0, nrow = n, ncol = K)
+  y_indicator[cbind(1:n, y + 1)] <- 1
+  
+  # print(dim(y_indicator))
+  # print(dim(p_k))
   
   loss <- -sum(diag(y_indicator %*% t(log(p_k)))) / n
+  # loss <- -sum(diag(t(log(p_k)) %*% y_indicator)) / n
+  # stop('End function')
   
   ###
   
@@ -58,6 +69,7 @@ loss_grad_scores <- function(y, scores, K){
   y_preds <- apply(p_k, 1, which.max) - 1
   # Compute percent
   error <- (1 - mean(y_preds == y)) * 100
+  # error <- mean((y - y_preds)^2)/2
   
   
   # [ToDo] Calculate gradient of loss with respect to scores (output)
@@ -83,6 +95,7 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
 
   # [To Do] Forward pass
   # From input to hidden 
+  n <- length(y)
   H1 <- X %*% W1 + matrix(b1, nrow = n, ncol = length(b1), byrow = TRUE)
   
   # ReLU
@@ -100,7 +113,7 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
   db2 <- colSums(out$grad)
   
   # Get gradient for hidden, and 1st layer W1, b1 (use lambda as needed)
-  dH = tcrossprod(loss_grad$grad, W2)
+  dH = tcrossprod(out$grad, W2)
   dH[H1 == 0] <- 0
   dW1 = crossprod(X, dH) + lambda * W1
   db1 = colSums(dH)
@@ -129,7 +142,8 @@ evaluate_error <- function(Xval, yval, W1, b1, W2, b2){
   
   # [ToDo] Evaluate error rate (in %) when 
   # comparing scores-based predictions with true yval
-  error <- (1 - mean(scores == yval)) * 100
+  # error <- (1 - mean(scores == yval)) * 100
+  error <- mean((yval - scores)^2)/2
   
   return(error)
 }
@@ -159,8 +173,10 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
   # and determine any necessary inputs from supplied ones
   # Necessary Inputs:
   p <- ncol(X) # Number of features
+  K <- length(unique(y)) # Number of classes
+
   # Initializing weights/intercepts via initialize_bw:
-  init <- initialize_bw(p, hidden_p, scale = scale, seed = seed)
+  init <- initialize_bw(p, hidden_p, K, scale = scale, seed = seed)
   b1 <- init$b1
   b2 <- init$b2
   W1 <- init$W1
@@ -185,7 +201,7 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
     for (j in 1:nBatch){
       
       # Get loss and gradient on the batch
-      pass <- one_pass(X[batchids == j, ], y[batchids == j], W1, b1, W2, b2)
+      pass <- one_pass(X[batchids == j, ], y[batchids == j], K, W1, b1, W2, b2, lambda)
       
       # Keep track of loss
       error_loss <- error_loss + pass$loss
@@ -203,7 +219,7 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
     error[i] <- error_loss / nBatch
     
     # - validation error using evaluate_error function
-    error_val[i] <- loss_only(Xval, yval, W1, b1, W2, b2)
+    error_val[i] <- evaluate_error(Xval, yval, W1, b1, W2, b2)
     
   }
   # Return end result
