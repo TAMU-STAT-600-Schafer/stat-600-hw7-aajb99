@@ -8,7 +8,7 @@
 initialize_bw <- function(p, hidden_p, K, scale = 1e-3, seed = 12345){
   # [ToDo] Initialize intercepts as zeros
   b1 <- rep(0, hidden_p)
-  b2 <- 0
+  b2 <- rep(0, K)
   
   # [ToDo] Initialize weights by drawing them iid from Normal
   # with mean zero and scale as sd
@@ -100,9 +100,10 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
   
   # ReLU
   H1 <- (abs(H1) + H1)/2
-  
+  # print(dim(W2))
+  # print(length(b2))
   # From hidden to output scores
-  scores <- H1 %*% W2 + b2
+  scores <- H1 %*% W2 + matrix(b2, nrow = n, ncol = length(b2), byrow = TRUE)
   
   # [ToDo] Backward pass
   # Get loss, error, gradient at current scores using loss_grad_scores function
@@ -138,12 +139,21 @@ evaluate_error <- function(Xval, yval, W1, b1, W2, b2){
   # ReLU
   H1 <- (abs(H1) + H1)/2
   # From hidden to output scores
-  scores <- H1 %*% W2 + b2
+  scores <- H1 %*% W2 + matrix(b2, nrow = nval, ncol = length(b2), byrow = TRUE)
   
   # [ToDo] Evaluate error rate (in %) when 
   # comparing scores-based predictions with true yval
-  # error <- (1 - mean(scores == yval)) * 100
-  error <- mean((yval - scores)^2)/2
+  
+  exp_scores <- exp(scores)
+  # Denom
+  sum_exp_scores <- rowSums(exp_scores)
+  # pk:
+  p_k <- exp_scores / sum_exp_scores
+  
+  # Predictions
+  yval_preds <- apply(p_k, 1, which.max) - 1
+  # Compute percent
+  error <- (1 - mean(yval_preds == yval)) * 100
   
   return(error)
 }
@@ -199,12 +209,12 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
     #  - do one_pass to determine current error and gradients
     #  - perform SGD step to update the weights and intercepts
     for (j in 1:nBatch){
-      
+      # print(length(b2))
       # Get loss and gradient on the batch
       pass <- one_pass(X[batchids == j, ], y[batchids == j], K, W1, b1, W2, b2, lambda)
       
       # Keep track of loss
-      error_loss <- error_loss + pass$loss
+      error_loss <- error_loss + pass$error
       
       # [ToDo] Make an update of W1, b1, W2, b2
       W1 <- W1 - rate * pass$grads$dW1
