@@ -58,7 +58,8 @@ loss_grad_scores <- function(y, scores, K){
   
   # [ToDo] Calculate misclassification error rate (%)
   # when predicting class labels using scores versus true y
-  y_preds <- apply(p_k, 1, which.max) - 1
+  y_preds <- max.col(p_k, ties.method = 'first') - 1
+  
   # Compute percent error
   error <- (1 - mean(y_preds == y)) * 100
   
@@ -131,11 +132,9 @@ evaluate_error <- function(Xval, yval, W1, b1, W2, b2){
   scores <- H1 %*% W2 + matrix(b2, nrow = nval, ncol = length(b2), byrow = TRUE)
   
   # Predictions
-  yval_preds <- apply(scores, 1, which.max) - 1
-  # Faster:
-  # yval_preds <- max.col(scores, 1, ties.method = 'first') - 1
-  # yval_preds <- .Internal(max.col(scores, 1)) - 1
-  # Compute percent
+  yval_preds <- max.col(scores, ties.method = 'first') - 1
+
+  # Compute percent error
   error <- (1 - mean(yval_preds == yval)) * 100
   
   return(error)
