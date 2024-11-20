@@ -46,35 +46,24 @@ loss_grad_scores <- function(y, scores, K){
   
   ###
   
-  # Compute Objective Value f(beta) (loss) #
-  ##########################################
+  # Compute Objective Value f(beta) (loss function) #
+  ###################################################
   
-  # y_factor <- as.factor(y)
-  # y_indicator <- model.matrix(~ y_factor - 1)
-  # y_indicator <- model.matrix(~ y_factor)
   y_indicator <- matrix(0, nrow = n, ncol = K)
   y_indicator[cbind(1:n, y + 1)] <- 1
   
-  # print(dim(y_indicator))
-  # print(dim(p_k))
-  
   loss <- -sum(diag(y_indicator %*% t(log(p_k)))) / n
-  # loss <- -sum(diag(t(log(p_k)) %*% y_indicator)) / n
-  # stop('End function')
   
   ###
   
   # [ToDo] Calculate misclassification error rate (%)
   # when predicting class labels using scores versus true y
   y_preds <- apply(p_k, 1, which.max) - 1
-  # Compute percent
+  # Compute percent error
   error <- (1 - mean(y_preds == y)) * 100
-  # error <- mean((y - y_preds)^2)/2
-  
   
   # [ToDo] Calculate gradient of loss with respect to scores (output)
   # when lambda = 0
-  # grad <- y_indicator * (p_k - 1) / n
   grad <- (p_k - y_indicator) / n
   
   
@@ -96,13 +85,13 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
   # [To Do] Forward pass
   # From input to hidden 
   n <- length(y)
-  H1 <- X %*% W1 + matrix(b1, nrow = n, ncol = length(b1), byrow = TRUE)
+  H1 <- X %*% W1 + matrix(b1, nrow = n, ncol = length(b1), byrow = TRUE) # Hidden layer formula
   
   # ReLU
+  #   Negative signal set to 0 in H1
   H1 <- (abs(H1) + H1)/2
-  # print(dim(W2))
-  # print(length(b2))
-  # From hidden to output scores
+
+  # From hidden to output scores (model scores per class)
   scores <- H1 %*% W2 + matrix(b2, nrow = n, ncol = length(b2), byrow = TRUE)
   
   # [ToDo] Backward pass
@@ -115,7 +104,7 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
   
   # Get gradient for hidden, and 1st layer W1, b1 (use lambda as needed)
   dH = tcrossprod(out$grad, W2)
-  dH[H1 == 0] <- 0
+  dH[H1 == 0] <- 0 # Ensures zeroed out nodes of hidden layer (ReLu) match gradient
   dW1 = crossprod(X, dH) + lambda * W1
   db1 = colSums(dH)
   
@@ -135,23 +124,17 @@ one_pass <- function(X, y, K, W1, b1, W2, b2, lambda){
 evaluate_error <- function(Xval, yval, W1, b1, W2, b2){
   # [ToDo] Forward pass to get scores on validation data
   nval <- nrow(Xval)
-  H1 <- Xval %*% W1 + matrix(b1, nrow = nval, ncol = length(b1), byrow = TRUE)
-  # ReLU
+  H1 <- Xval %*% W1 + matrix(b1, nrow = nval, ncol = length(b1), byrow = TRUE) # Hidden layer computation
+  # ReLU activation on hidden layer
   H1 <- (abs(H1) + H1)/2
-  # From hidden to output scores
+  # From hidden to output scores (model scores per class)
   scores <- H1 %*% W2 + matrix(b2, nrow = nval, ncol = length(b2), byrow = TRUE)
   
-  # [ToDo] Evaluate error rate (in %) when 
-  # comparing scores-based predictions with true yval
-  
-  exp_scores <- exp(scores)
-  # Denom
-  sum_exp_scores <- rowSums(exp_scores)
-  # pk:
-  p_k <- exp_scores / sum_exp_scores
-  
   # Predictions
-  yval_preds <- apply(p_k, 1, which.max) - 1
+  yval_preds <- apply(scores, 1, which.max) - 1
+  # Faster:
+  # yval_preds <- max.col(scores, 1, ties.method = 'first') - 1
+  # yval_preds <- .Internal(max.col(scores, 1)) - 1
   # Compute percent
   error <- (1 - mean(yval_preds == yval)) * 100
   
@@ -197,24 +180,26 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
   error_val = rep(NA, nEpoch)
   
   # Set seed for reproducibility
+  #   (Reproducibility in batch assignments)
   set.seed(seed)
   # Start iterations
   for (i in 1:nEpoch){
-    # Allocate bathes
+    # Allocate batches: assign observations to specific batch
     batchids = sample(rep(1:nBatch, length.out = n), size = n)
     # [ToDo]
     # Accumulate loss over batches, and compute average:
-    error_loss <- 0
+    # First: initialize accumulated error at 0
+    accum_error <- 0
     # [ToDo] For each batch
     #  - do one_pass to determine current error and gradients
     #  - perform SGD step to update the weights and intercepts
     for (j in 1:nBatch){
-      # print(length(b2))
+
       # Get loss and gradient on the batch
       pass <- one_pass(X[batchids == j, ], y[batchids == j], K, W1, b1, W2, b2, lambda)
       
-      # Keep track of loss
-      error_loss <- error_loss + pass$error
+      # Update error at each batch iteration
+      accum_error <- accum_error + pass$error
       
       # [ToDo] Make an update of W1, b1, W2, b2
       W1 <- W1 - rate * pass$grads$dW1
@@ -226,7 +211,7 @@ NN_train <- function(X, y, Xval, yval, lambda = 0.01,
     
     # [ToDo] In the end of epoch, evaluate
     # - average training error across batches
-    error[i] <- error_loss / nBatch
+    error[i] <- accum_error / nBatch
     
     # - validation error using evaluate_error function
     error_val[i] <- evaluate_error(Xval, yval, W1, b1, W2, b2)
