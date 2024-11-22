@@ -168,4 +168,52 @@ plot(out5$error_val)
 
 
 
+#######################################################
+# Speed Tests
+
+# Load Letter Data:
+# Training data
+letter_train <- read.table("Data/letter-train.txt", header = F, colClasses = "numeric")
+Y <- letter_train[, 1]
+X <- as.matrix(letter_train[, -1])
+
+# Update training to set last part as validation
+id_val = 1801:2000
+Yval = Y[id_val]
+Xval = X[id_val, ]
+Ytrain = Y[-id_val]
+Xtrain = X[-id_val, ]
+
+# Testing data
+letter_test <- read.table("Data/letter-test.txt", header = F, colClasses = "numeric")
+Yt <- letter_test[, 1]
+Xt <- as.matrix(letter_test[, -1])
+
+# Required packages:
+library(microbenchmark)
+microbenchmark(
+  
+  my_NN_train <- NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.001,
+                          rate = 0.1, mbatch = 50, nEpoch = 150,
+                          hidden_p = 100, scale = 1e-3, seed = 12345),
+
+  times = 10L
+  
+)
+
+# Speed: Median is ~6.4 seconds (Intel Chip) on Letter Data
+
+
+########################################################
+# Garbage Collection
+
+library(profvis)
+profvis(
+  {
+    NN_train(Xtrain, Ytrain, Xval, Yval, lambda = 0.001,
+             rate = 0.1, mbatch = 50, nEpoch = 150,
+             hidden_p = 100, scale = 1e-3, seed = 12345)
+  }
+)
+
 
